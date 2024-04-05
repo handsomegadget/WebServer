@@ -1,6 +1,11 @@
 #include "http_connection.h"
 #include <fstream>
 
+#define clientfdET //edge-triggered non-blocking
+//#define clientfdLT //level-triggered blocking
+#define listenfdET 
+//#define listenfdLT
+
 //定义http响应的一些状态信息
 const char *ok_200_title = "OK";
 const char *error_400_title = "Bad Request";
@@ -18,7 +23,6 @@ sem lock(1); //mutex lock
 int http_conn::m_user_count = 0;
 int http_conn::m_epollfd = -1;
 
-
 //对文件描述符设置非阻塞
 int setnonblocking(int fd)
 {
@@ -29,13 +33,21 @@ int setnonblocking(int fd)
 /*日后恢复该状态标志*/
 }
 
-void addfd(int epollfd, int fd, bool one_shot)
+//register read events, edge-triggered mode and oneshot in kernel event table
+void addfd(int epollfd, int fd, bool one_shot, bool isServer)
 {
     epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLRDHUP;
-
-    if(one_shot)
+    event.events = EPOLLRDHUP | EPOLLIN ;
+#ifdef listenfdET
+    if(isServer)
+        event.events |= EPOLLET;
+#endif
+#ifdef clientfdET
+    if(!isServer)
+        event.events |= EPOLLET;
+#endif
+    if(one_shot == true)
         event.events |= EPOLLONESHOT;
     epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
     setnonblocking(fd);
@@ -55,6 +67,9 @@ void modfd(int epollfd, int fd, int ev)
     epoll_event event;
     event.data.fd = fd;
     event.events = ev | EPOLLONESHOT | EPOLLRDHUP;
+#ifdef clientfdET
+    event.events |= EPOLLET;
+#endif
     epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &event);
 }
 
@@ -74,7 +89,7 @@ void http_conn::init(int sockfd, const sockaddr_in &addr)
 {
     m_sockfd = sockfd;
     m_address = addr;
-    addfd(m_epollfd, sockfd, true);
+    addfd(m_epollfd, sockfd, true, false);
     m_user_count++;
     init();
 }
@@ -141,15 +156,35 @@ bool http_conn::read_once()
 {
     if (m_read_idx >= READ_BUFFER_SIZE)
     return false;
-    printf("m-read_idx: %d\n", m_read_idx);
     int bytes_read = 0;
+#ifdef clientfdLT
     bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
     m_read_idx += bytes_read;
-    printf("bytes read: %d\n", bytes_read);
     //无数据可读
     if (bytes_read <= 0) 
-    return false;
+        return false;
+    else 
+        return true;
+#endif
+
+#ifdef clientfdET
+    while (true)
+    {
+        bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
+        if (bytes_read == -1)
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                break;
+            return false;
+        }
+        else if (bytes_read == 0)
+        {
+            return false;
+        }
+        m_read_idx += bytes_read;
+    }
     return true;
+#endif
 }
 
 //解析http请求行，获得请求方法，目标url及http版本号
