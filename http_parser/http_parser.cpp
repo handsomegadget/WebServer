@@ -1,5 +1,6 @@
 #include "http_connection.h"
 #include <fstream>
+#include "../log/log.h"
 
 #define clientfdET //edge-triggered non-blocking
 //#define clientfdLT //level-triggered blocking
@@ -51,7 +52,6 @@ void addfd(int epollfd, int fd, bool one_shot, bool isServer)
         event.events |= EPOLLONESHOT;
     epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
     setnonblocking(fd);
-    printf("fd %d added\n", fd);
 }
 
 //从内核时间表删除描述符
@@ -272,7 +272,8 @@ http_conn::HTTP_CODE http_conn::parse_headers(char *text)
     }
     else
     {
-        printf("Unknow header: %s\n",text);
+        LOG_INFO("Unknow header: %s\n",text);
+        Log::get_instance()->flush();
     }
     return NO_REQUEST;
 }
@@ -300,7 +301,8 @@ http_conn::HTTP_CODE http_conn::process_read()
     {
         text = get_line();
         m_start_line = m_checked_idx;
-        printf("%s", text);
+        LOG_INFO("%s", text);
+        Log::get_instance()->flush();
         switch (m_check_state)
         {
         case CHECK_STATE_REQUESTLINE:
@@ -340,9 +342,9 @@ http_conn::HTTP_CODE http_conn::do_request()
 {
     strcpy(m_real_file, document_folder);
     int len = strlen(document_folder);
-    printf("\n\n\nm_url:%s\n\n", m_url);
+
     const char *p = strrchr(m_url, '/');
-    printf("p:%c\n", *(p+1));
+
     //处理cgi
     if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
     {
@@ -367,7 +369,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     if (S_ISDIR(m_file_stat.st_mode))
         return BAD_REQUEST;
     int fd = open(m_real_file, O_RDONLY);
-    printf("fd creted for index:%d\nMy real file : %s\n", fd, m_real_file);
+    
     m_file_address = (char *)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     return FILE_REQUEST;
@@ -454,7 +456,8 @@ bool http_conn::add_response(const char *format, ...)
     }
     m_write_idx += len;
     va_end(arg_list);
-    printf("request:%s", m_write_buf);
+    LOG_INFO("request:%s", m_write_buf);
+    Log::get_instance()->flush();
     return true;
 }
 bool http_conn::add_status_line(int status, const char *title)

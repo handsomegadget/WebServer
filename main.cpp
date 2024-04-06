@@ -12,6 +12,7 @@
 #include "./threadpool/threadpool.h"
 #include "./http_parser/http_connection.h"
 #include "./timer/timer.h"
+#include "./log/log.h"
 
 #define listenfdET
 // #define listenfdLT
@@ -19,6 +20,8 @@
 #define MAX_FD 65536           //最大文件描述符
 #define MAX_EVENT_NUMBER 10000 //最大事件数
 #define TIMESLOT 5             //最小超时单位
+
+#define SYNLOG
 
 // 定时器
 static int pipefd[2]; // 传递信号给主线程的管道,同样被注册在epoll的事件表里
@@ -66,7 +69,7 @@ void cb_func(client_data *user_data)
     assert(user_data);
     close(user_data->sockfd);
     http_conn::m_user_count--;
-    printf("close fd %d", user_data->sockfd);
+    LOG_INFO("close fd %d", user_data->sockfd);
 }
 
 void print_error_info(char* message){
@@ -76,6 +79,13 @@ void print_error_info(char* message){
 }
 
 int main(int argc, char* argv[]){
+#ifdef ASYNLOG
+    Log::get_instance()->init("ServerLog", 2000, 800000, 8); //异步日志模型
+#endif
+
+#ifdef SYNLOG
+    Log::get_instance()->init("ServerLog", 2000, 800000, 0); //同步日志模型
+#endif
 
     if(argc != 2){
         fprintf(stderr,"Usage: %s  <Port>\n", argv[0]);
@@ -143,8 +153,7 @@ int main(int argc, char* argv[]){
         int number = epoll_wait(epollfd, events, MAX_EVENT_NUMBER, -1);
 
         if(number < 0 && errno != EINTR){
-            printf("errno: %d\n", errno);
-            print_error_info("Epoll_wait() failure!");
+            LOG_ERROR("%s", "Epoll_wait() failure!");
             exit(1);
         }
         for(int i = 0; i < number; ++i){
@@ -158,12 +167,13 @@ int main(int argc, char* argv[]){
 #ifdef listenfdLT
                 int clientfd = accept(listenfd, (struct sockaddr *)&client_address, &client_address_len);
                 if(clientfd < 0){
-                    print_error_info("accept() error ");
+                    LOG_ERROR("%s:error is:%d","accept() error ", errno);
                     continue;
                 }
                 
                 if(http_conn::m_user_count >= MAX_FD){
                     print_error_info("Internet server busy");
+                    LOG_ERROR("%s", "Internal server busy");
                     continue;
                 }
                 users_table[clientfd].init(clientfd, client_address);
@@ -183,12 +193,13 @@ int main(int argc, char* argv[]){
                 while(true){
                     int clientfd = accept(listenfd, (struct sockaddr *)&client_address, &client_address_len);
                     if(clientfd < 0){
-                        print_error_info("accept() error ");
+                        LOG_ERROR("%s:errno is:%d", "accept error", errno);
                         break;
                     }
                 
                     if(http_conn::m_user_count >= MAX_FD){
                         print_error_info("Internet server busy");
+                        LOG_ERROR("%s", "Internal server busy");
                         break;
                     }
                     users_table[clientfd].init(clientfd, client_address);
@@ -244,11 +255,12 @@ int main(int argc, char* argv[]){
                 if(users_table[sockfd].read_once()){
                     //put the event in the request queue
                     pool->append(users_table + sockfd);
-                    printf("start read request from fd %d\n", sockfd);
+                    LOG_INFO("deal with the client(%s)", inet_ntoa(users_table[sockfd].get_address()->sin_addr));
+                    Log::get_instance()->flush();
                     if(timer){
                         time_t cur = time(0);
                         timer->expire = cur+3*TIMESLOT;
-                        printf("adjust timer %d once\n", sockfd);
+                        LOG_INFO("%s","adjust timer %d once\n", sockfd);
                         heap_timers.percolate_down(timer->position);
                     }
                 }
@@ -269,7 +281,8 @@ int main(int argc, char* argv[]){
                     if(timer){
                         time_t cur = time(0);
                         timer->expire = cur+3*TIMESLOT;
-                        printf("adjust timer %d once\n", sockfd);
+                        LOG_INFO("%s","adjust timer %d once\n", sockfd);
+                        Log::get_instance()->flush();
                         heap_timers.percolate_down(timer->position);
                     }
                 }
