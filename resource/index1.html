@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鸡你太美</title>
+    <title>WebServer</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -14,13 +14,13 @@
         header {
             background-color: #333;
             color: #fff;
-            padding: 10px 20px;
+            padding: 20px 0;
             text-align: center;
         }
         nav {
             background-color: #444;
             color: #fff;
-            padding: 10px;
+            padding: 10px 0;
             text-align: center;
         }
         nav a {
@@ -44,11 +44,22 @@
             bottom: 0;
             width: 100%;
         }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
     <header>
-        <h1>Welcome to chicken Beautiful Homepage</h1>
+        <h1>Welcome to Homepage</h1>
     </header>
     <nav>
         <a href="#">Home</a>
@@ -57,11 +68,17 @@
         <a href="#">Contact</a>
     </nav>
     <section>
-        <h2>About Us</h2>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed dapibus lacus ac libero malesuada, a commodo dolor finibus. Integer varius nisi sed lacus pretium, sed ultricies erat rhoncus.</p>
+        <h2>请求图片或视频</h2>
+        <form action="2" method="post">
+            <button type="submit">图</button>
+        </form>
+        <br>
+        <form action="3" method="post">
+            <button type="submit">视频</button>
+        </form>
     </section>
     <footer>
-        <p>&copy; 2024 My Beautiful Homepage. All rights reserved.</p>
+        <p>&copy; 2024 My Homepage. All rights reserved.</p>
     </footer>
 </body>
 </html>

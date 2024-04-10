@@ -243,7 +243,7 @@ int main(int argc, char* argv[]){
             }
             else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-                printf("Server deliberately closed the connection of  %d\n", sockfd);
+                // printf("Server deliberately closed the connection of  %d\n", sockfd);
                 epoll_ctl(epollfd, EPOLL_CTL_DEL, sockfd, 0);
                 close(sockfd);
                 http_conn::m_user_count--;

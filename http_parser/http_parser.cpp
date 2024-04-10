@@ -344,22 +344,23 @@ http_conn::HTTP_CODE http_conn::do_request()
     int len = strlen(document_folder);
 
     const char *p = strrchr(m_url, '/');
-
-    //处理cgi
-    if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
+    if (*(p + 1) == '2')
     {
-
-        //根据标志判断是登录检测还是注册检测
-        char flag = m_url[1];
-
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
-        strcpy(m_url_real, "/");
-        strcat(m_url_real, m_url + 2);
-        strncpy(m_real_file + len, m_url_real, FILENAME_LEN - len - 1);
+        strcpy(m_url_real, "/picture.html");
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
         free(m_url_real);
-
     }
+    else if (*(p + 1) == '3')
+    {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/video.html");
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
+        free(m_url_real);
+    }
+    else
     strncpy(m_real_file + len, m_url, FILENAME_LEN - len - 1);
 
     if (stat(m_real_file, &m_file_stat) < 0)

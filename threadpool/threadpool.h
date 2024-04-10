@@ -32,7 +32,7 @@ threadpool::threadpool(int thread_number, int max_requests):request_queue_lock(1
 {
     if(thread_number <= 0 || max_requests <= 0) throw exception();
     if(!(my_threads = new pthread_t[my_thread_num])) throw exception();
-    
+
 
     for(int i = 0; i < thread_number; i++){
         if(pthread_create(my_threads+i, NULL, worker, this) != 0)
