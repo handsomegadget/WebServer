@@ -53,7 +53,7 @@ public:
         array[hole] = temp;
     }
 
-    void resize()throw(std::exception){
+    void resize(){
         heap_timer **temp = new heap_timer*[2*capacity];
         for(int i = 0; i < 2*capacity; ++i){
             temp[i] = NULL;
@@ -70,7 +70,7 @@ public:
     }
 
     /*initialize an empty heap, whose size is cap*/
-    time_heap(int cap)throw(std::exception):capacity(cap), cur_size(0){
+    time_heap(int cap):capacity(cap), cur_size(0){
         array = new heap_timer *[capacity];/*create the heap*/
         if(!array){
             throw std::exception();
@@ -79,7 +79,7 @@ public:
             array[i] = NULL;
         }
     }
-    time_heap(heap_timer** init_array, int size, int capacity)throw(std::exception):cur_size(size), capacity(capacity){
+    time_heap(heap_timer** init_array, int size, int capacity):cur_size(size), capacity(capacity){
         if(capacity<size){
             throw std::exception();
         }
@@ -107,7 +107,7 @@ public:
         delete[] array;
     }
 
-    void add_timer(heap_timer* timer)throw(std::exception){
+    void add_timer(heap_timer* timer){
         if(!timer) return;
         if(cur_size >= capacity) resize(); //twice the capacity
         /*a new elemnt is added*/

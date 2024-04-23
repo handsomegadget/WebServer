@@ -6,6 +6,7 @@
 #include <exception>
 #include <pthread.h>
 #include "../http_parser/http_connection.h"
+#include "../lockfreequeue/lockfreeq.h"
 using namespace std;
 
 class threadpool
@@ -14,9 +15,9 @@ private:
     int my_thread_num;          
     int max_request_num;
     pthread_t *my_threads;
-    list<http_conn *> my_request_queue;
-    sem request_queue_lock;               //initialize to 1
-    sem request_number;
+    AtomicQueue2<http_conn *, 32> my_request_queue;
+    // sem request_queue_lock;               //initialize to 1
+    // sem request_number;
     bool my_stop_thread;
 
     static void* worker(void *arg);
@@ -28,7 +29,7 @@ public:
     bool append(http_conn *request);
 };
 
-threadpool::threadpool(int thread_number, int max_requests):request_queue_lock(1), request_number(0), my_thread_num(thread_number), max_request_num(max_requests), my_stop_thread(false), my_threads(NULL)
+threadpool::threadpool(int thread_number, int max_requests): my_thread_num(thread_number), max_request_num(max_requests), my_stop_thread(false), my_threads(NULL)
 {
     if(thread_number <= 0 || max_requests <= 0) throw exception();
     if(!(my_threads = new pthread_t[my_thread_num])) throw exception();
@@ -57,15 +58,7 @@ threadpool::~threadpool()
 bool
 threadpool::append(http_conn *request)
 {
-    request_queue_lock.wait();
-    if(my_request_queue.size() > max_request_num)
-    {
-        request_queue_lock.post();
-        return false;
-    }
-    my_request_queue.push_back(request);
-    request_queue_lock.post();
-    request_number.post();
+    my_request_queue.push(request);
     return true;
 }
 
@@ -82,16 +75,9 @@ threadpool::run()
 {
     while(!my_stop_thread)
     {
-        request_number.wait();
-        request_queue_lock.wait();
-        if(my_request_queue.empty())
-        {
-            request_queue_lock.post();
-            continue;
-        }
-        http_conn *request = my_request_queue.front();
-        my_request_queue.pop_front();
-        request_queue_lock.post();
+
+
+        http_conn *request = my_request_queue.pop();
         if(!request) continue;
         request->process();
     }

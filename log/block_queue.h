@@ -6,7 +6,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include "../lockWrapper/lock.h"
-
+#include "../lockfreequeue/lockfreeq.h"
 using namespace std;
 template <class T>
 class block_queue
